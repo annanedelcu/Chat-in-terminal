@@ -1,0 +1,50 @@
+* Protocoale de Comunicatii, Tema 3 *
+NEDELCU ANA-FLORENTINA - 325CC
+Gradul de dificultate: mediu
+
+
+Tema a fost realizata pe Linux Mint 14, pentru testare am folosit gcc 
+(Ubuntu/Linaro 4.7.2-2ubuntu1) 4.7.2.
+
+Bibliografie: indrumarele de laborator, scheletul de cod din laboratorul 8, paginile de man de pe linux, internet.
+
+Tema contine sursele: client.c, server.c, lib.c si lib.h, un fisier Makefile si acest README.
+
+make client - se compileaza clientul
+make serve - se compileaza serverul
+make sau make all - se compileaza amandoua
+make clean - se sterg fisierele generate la compilare si la executie (inclusiv fisierele de history si primite)
+
+Detalii de implementare:
+
+Implementarea mea se bazeaza foarte mult pe modelul avut in cadrul laboratorului de Socketi TCP cu multiplexarea comunicatiei; am folosit functia select, asa cum este cerut in enunt. Am luat timeout-ul din select de 1s.
+
+Structurile implementarilor pentru client si server sunt oarecum asemanatoare:
+filedescriptorii din multimea read_fds, pe care o intoarce functia select, pot fi:
+- filedescriptorul pt STDIN, si in acest caz ma uit ce comanda este citita de la tastatura;
+- filedescriptorul socketului pe care "ascult" cereri de conexiune de la clienti (in cazul serverului, toti clientii noi intrati in sistem, in cadrul unui client, clientii care vor sa comunice cu acesta).
+- filedescriptorii socketilor pe care se face comunicatia cu clientii.
+
+Atat serverul, cat si fiecare client, pastreaza cate un vector cu clientii cu care are conexiuni. Informatiile despre un client sunt retinute intr-o structura ce contine numele clientului, portul pe care asculta cereri de conectare, socketul pe care se comunica cu respectivul client si un camp pentru structura specifica adresei(sockaddr_in).In cazul unui client X, un alt client Y este adaugat in vectorul de clienti din X  si daca Y s-a conectat  la X si daca X s-a conectat la Y.
+Pentru a realiza comunicatia intre clienti si intre un client si server, trimit mai intai un mesaj care sa-l anunte pe clientul destinatie/server ce urmeaza sa primeasca. Cererile facute de catre un client la server sunt de asemenea mesaje.
+
+Comenzile sunt codificate si in client si in server cu numere de la 1 la 7 (1-3 pentru server).
+
+Comenzile din server sunt implementate astfel:
+1) status afiseaza anumite informatii din vectorul cu clienti din server;
+2) kick trimite un mesaj "disconnect" la client si apoi inchide conexiunea cu acesta. Cand programul clientului primeste "disconnect", inchide conexiunile pe care le are cu alti clienti si isi incheie executia.
+3) quit trimite disconnect tuturor clientilor, inchide conexiunile si incheie executia programului serverului.
+
+Comenzile din client sunt implementate astfel:
+1) listclients trimite o cerere la server, care ii trimite inapoi o lista cu numele clientilor activi (atunci cand serverul trimite ceva clintului, il anunta, asa cum am mai zis, despre ce ii va trimite printr-un mesaj aproape identic cu cel din cerere).
+2) infoclient trimite o cerere la server, de tip "infoclient" (serverul ii raspunde la acest tip de cerere cu informatiile despre clientul dat ca argument al comenzii) si seteaza o variabila astfel incat atunci cand clientul va primi acele informatii, ele se vor afisa pe ecran (Timpul scurs de la conectare este afisat in milisecunde).
+3) message trimite de asemenea o cerere de tip "infoclient" la server, primeste informatiile necesare si stiind ca nu trebuiesc afisate si nici nu exista un fisier care se vrea trimis (voi explica ulterior), se trimite mesaj la clientul despre care s-au primit informatii; mesajul are formatul cerut in enunt. 
+4) broadcast trimite o cerere de tip broadcast la server care ii trimite, pe rand, informatii despre toti clientii activi.
+5) sendfile trimite tot o cerere de tip "infoclient" la server si apoi ii trimite clientului destinatie un mesaj pentru a-l anunta ca ii va trimite un fisier si numele fisierului. Apoi se verifica de fiecare data daca nu exista o alta comanda primita de la tastatura sau un mesaj primit de la un client/server si se trimit pe rand bucati din fisier; Clientul destinatie este anunta de asemenea cand s-a terminat de transmis fisierul.
+6)history afiseaza pe ecran tot ce se afla in fisierul history cu numele clientului caruia i-a fost data comanda. In acest fisier se scrie atunci cand este primit un mesaj sau un fisier.
+7) quit anunta serverul ca iese si inchide toate conexiunile, apoi termina executia programului.
+
+Atunci cand clientul primeste de la server informatii despre un alt client si stie ca nu trebuie sa le afiseze (deci trebuie sa trimita un mesaj sau un fisier), el cauta sa vada daca are deja conexiuni cu acel client, daca nu,  incearca sa se conecteze la el. In cazul in care clientul destinatie este chiar el insusi, atunci se va afisa pur si simplu mesajul pe ecran, iar fisierul nu va fi trimis (nu are rost), afisandu-se un mesaj corespunzator.
+
+
+
